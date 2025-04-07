@@ -1,27 +1,54 @@
 // Archivo: js/firebase-config.js
 
-// Configuración de Firebase usando la URL de Realtime Database y el token secreto
-const databaseURL = "https://sitio-web-dinamico-f288d-default-rtdb.firebaseio.com";
-const databaseSecret = "VcYw7YHEfUMoQfFsF2p4h3XUSbgmbuxVMs4DEMc";
+// Configuración de Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyABUC07hqoZG31H10Fn3Ump2pswcbhZm88",
+  authDomain: "sitio-web-dinamico-f288d.firebaseapp.com",
+  databaseURL: "https://sitio-web-dinamico-f288d-default-rtdb.firebaseio.com",
+  projectId: "sitio-web-dinamico-f288d",
+  storageBucket: "sitio-web-dinamico-f288d.firebasestorage.app",
+  messagingSenderId: "252624454651",
+  appId: "1:252624454651:web:63b9b1b92b368f3da4415e"
+};
 
-// Función para realizar solicitudes a la base de datos con el token de autenticación
-async function firebaseRequest(path, method = 'GET', data = null) {
-  const url = `${databaseURL}/${path}.json?auth=${databaseSecret}`;
-  
-  const options = {
-    method,
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  };
-  
-  if (data && (method === 'PUT' || method === 'POST' || method === 'PATCH')) {
-    options.body = JSON.stringify(data);
+// Inicializar Firebase
+if (typeof firebase !== 'undefined') {
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
   }
-  
+} else {
+  console.error("Firebase SDK no está cargado. Asegúrate de incluir los scripts de Firebase antes de este archivo.");
+}
+
+// Función segura para realizar solicitudes a la base de datos
+async function firebaseRequest(path, method = 'GET', data = null) {
   try {
-    const response = await fetch(url, options);
-    return await response.json();
+    if (typeof firebase === 'undefined' || !firebase.database) {
+      throw new Error("Firebase no está inicializado correctamente. Asegúrate de incluir los scripts de Firebase.");
+    }
+
+    const db = firebase.database();
+    const ref = db.ref(path);
+    
+    switch (method) {
+      case 'GET':
+        const snapshot = await ref.once('value');
+        return snapshot.val();
+      case 'PUT':
+        await ref.set(data);
+        return { success: true };
+      case 'POST':
+        const newRef = await ref.push(data);
+        return { name: newRef.key };
+      case 'PATCH':
+        await ref.update(data);
+        return { success: true };
+      case 'DELETE':
+        await ref.remove();
+        return { success: true };
+      default:
+        throw new Error(`Método no soportado: ${method}`);
+    }
   } catch (error) {
     console.error("Error en la solicitud a Firebase:", error);
     throw error;
@@ -154,8 +181,19 @@ async function obtenerProductosPorCategoria(categoria) {
   }
 }
 
+// Función para enviar mensajes del formulario de contacto
+async function enviarMensajeContacto(formData) {
+  try {
+    return await firebaseRequest('mensajes', 'POST', formData);
+  } catch (error) {
+    console.error("Error al enviar mensaje de contacto:", error);
+    throw error;
+  }
+}
+
 // Exponer funciones para uso global
 window.cargarDatosIniciales = cargarDatosIniciales;
 window.obtenerProductos = obtenerProductos;
 window.obtenerProductoPorId = obtenerProductoPorId;
 window.obtenerProductosPorCategoria = obtenerProductosPorCategoria;
+window.enviarMensajeContacto = enviarMensajeContacto;
